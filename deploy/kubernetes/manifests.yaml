@@ -95,7 +95,15 @@ metadata:
 spec:
   groups:
   - name: kube-google-safebrowsing
-    rules: []
+    rules:
+    - alert: GoogleSafebrowsingThreatForDomain
+      annotations:
+        description: A threat for domain {{ $labels.domain }} has been found on Google
+          safebrowsing. Visit https://search.google.com/search-console for more details.
+        summary: Google safebrowsing threat for {{ $labels.domain }}.
+      expr: max by (domain) (google_safebrowsing_threat_matches) > 0
+      labels:
+        severity: critical
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

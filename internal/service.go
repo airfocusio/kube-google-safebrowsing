@@ -169,9 +169,10 @@ func (s *Service) FindThreatMatches() (map[string]bool, error) {
 func (s *Service) UpdateThreatMatchMetrics() error {
 	domainThreats, err := s.FindThreatMatches()
 	if err != nil {
-		return nil
+		return err
 	}
 
+	Debug.Printf("Google safesearch threat find response: %+v\n", domainThreats)
 	for domain, threatsFound := range domainThreats {
 		prom := s.PrometheusForDomain(domain)
 		if threatsFound {
@@ -183,7 +184,7 @@ func (s *Service) UpdateThreatMatchMetrics() error {
 
 	for domain, prom := range s.Prometheus {
 		found := false
-		for domainThreat, _ := range domainThreats {
+		for domainThreat := range domainThreats {
 			if domainThreat == domain {
 				found = true
 				break
