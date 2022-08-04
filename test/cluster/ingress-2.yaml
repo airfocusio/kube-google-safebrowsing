@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-2
+spec:
+  rules:
+  - host: "*.ingress-2.localhost"
+    http:
+      paths:
+      - backend:
+          service:
+            name: sbc
+            port:
+              name: http
+        path: /
+        pathType: Prefix

@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-google-safebrowsing
+  namespace: kube-system
+  labels:
+    app: kube-google-safebrowsing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-google-safebrowsing
+  template:
+    metadata:
+      labels:
+        app: kube-google-safebrowsing
+    spec:
+      serviceAccountName: kube-google-safebrowsing
+      containers:
+      - name: kube-google-safebrowsing
+        image: ghcr.io/airfocusio/kube-google-safebrowsing:latest
+        ports:
+          - containerPort: 1024
+            name: metrics

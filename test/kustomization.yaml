@@ -1,0 +1,5 @@
+resources:
+  - manifests.yaml
+images:
+  - name: ghcr.io/airfocusio/kube-google-safebrowsing
+    newTag: dev
