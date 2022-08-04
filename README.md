@@ -14,11 +14,11 @@ make test
 
 ## Metrics
 
-* `google_safebrowsing_thread_matches`: Gauge that is either `0` or `1` if there was a threat found
+* `google_safebrowsing_threat_matches`: Gauge that is either `0` or `1` if there was a threat found
 
 ## Labels
 
-* `top_level_domain`: The top level domain that has been checked
+* `domain`: The domain that has been checked
 
 ## Query
 

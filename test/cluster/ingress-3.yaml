@@ -9,7 +9,7 @@ spec:
       paths:
       - backend:
           service:
-            name: sbc
+            name: svc
             port:
               name: http
         path: /
@@ -19,7 +19,7 @@ spec:
       paths:
       - backend:
           service:
-            name: sbc
+            name: svc
             port:
               name: http
         path: /

@@ -2,3 +2,4 @@ resources:
   - ingress-1.yaml
   - ingress-2.yaml
   - ingress-3.yaml
+  - ingress-4.yaml

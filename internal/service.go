@@ -34,13 +34,13 @@ type Service struct {
 }
 
 type ServicePrometheus struct {
-	ThreadMatches prometheus.Gauge
+	ThreatMatches prometheus.Gauge
 }
 
 type ServiceIngress struct {
-	Namespace       string
-	Name            string
-	TopLevelDomains []string
+	Namespace string
+	Name      string
+	Domains   []string
 }
 
 const prometheusNamespace = "google_safebrowsing"
@@ -67,7 +67,7 @@ func (s *Service) Run(stop <-chan os.Signal) error {
 	if err := s.UpdateIngresses(); err != nil {
 		return err
 	}
-	if err := s.UpdateThreadMatchMetrics(); err != nil {
+	if err := s.UpdateThreatMatchMetrics(); err != nil {
 		return err
 	}
 
@@ -86,19 +86,13 @@ func (s *Service) Run(stop <-chan os.Signal) error {
 
 	go func() {
 		for {
+			time.Sleep(s.Opts.Interval)
 			if err := s.UpdateIngresses(); err != nil {
 				Error.Printf("Error: %v\n", err)
 			}
-			time.Sleep(time.Minute)
-		}
-	}()
-
-	go func() {
-		for {
-			if err := s.UpdateThreadMatchMetrics(); err != nil {
+			if err := s.UpdateThreatMatchMetrics(); err != nil {
 				Error.Printf("Error: %v\n", err)
 			}
-			time.Sleep(s.Opts.Interval)
 		}
 	}()
 
@@ -110,39 +104,39 @@ func (s *Service) Run(stop <-chan os.Signal) error {
 	}
 }
 
-func (s *Service) PrometheusForTopLevelDomain(topLevelDomain string) *ServicePrometheus {
+func (s *Service) PrometheusForDomain(domain string) *ServicePrometheus {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if prom, ok := s.Prometheus[topLevelDomain]; ok {
+	if prom, ok := s.Prometheus[domain]; ok {
 		return prom
 	}
 
 	promLabels := prometheus.Labels{
-		"top_level_domain": topLevelDomain,
+		"domain": domain,
 	}
 	prom := &ServicePrometheus{
-		ThreadMatches: prometheus.NewGauge(prometheus.GaugeOpts{
+		ThreatMatches: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   prometheusNamespace,
-			Name:        "thread_matches",
+			Name:        "threat_matches",
 			ConstLabels: promLabels,
 		}),
 	}
-	prometheus.MustRegister(prom.ThreadMatches)
+	prometheus.MustRegister(prom.ThreatMatches)
 
-	s.Prometheus[topLevelDomain] = prom
+	s.Prometheus[domain] = prom
 	return prom
 }
 
-func (s *Service) FindThreadMatches() (map[string]bool, error) {
-	Debug.Printf("Retrieving google safebrowsing thread matches\n")
+func (s *Service) FindThreatMatches() (map[string]bool, error) {
+	Debug.Printf("Retrieving google safebrowsing threat matches\n")
 
-	topLevelDomains := []string{}
+	domains := []string{}
 	for _, ingress := range s.Ingresses {
-		topLevelDomains = append(topLevelDomains, ingress.TopLevelDomains...)
+		domains = append(domains, ingress.Domains...)
 	}
-	topLevelDomains = append(topLevelDomains, s.Opts.AdditionalDomains...)
-	topLevelDomains = unique(topLevelDomains)
+	domains = append(domains, s.Opts.AdditionalDomains...)
+	domains = unique(domains)
 
 	ctx, cancel := context.WithTimeout(s.Context, 30*time.Second)
 	defer cancel()
@@ -150,20 +144,20 @@ func (s *Service) FindThreadMatches() (map[string]bool, error) {
 		APIKey: s.Opts.GoogleSafebrowsingApiKey,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("retrieving google safebrowsing thread matches failed: %w", err)
+		return nil, fmt.Errorf("retrieving google safebrowsing threat matches failed: %w", err)
 	}
-	threats, err := sb.LookupURLsContext(ctx, topLevelDomains)
+	threats, err := sb.LookupURLsContext(ctx, domains)
 	if err != nil {
-		return nil, fmt.Errorf("retrieving google safebrowsing thread matches failed: %w", err)
+		return nil, fmt.Errorf("retrieving google safebrowsing threat matches failed: %w", err)
 	}
 
 	result := map[string]bool{}
-	for _, topLevelDomain := range topLevelDomains {
-		result[topLevelDomain] = false
+	for _, domain := range domains {
+		result[domain] = false
 		for _, a := range threats {
 			for _, b := range a {
-				if b.Pattern == topLevelDomain+"/" {
-					result[topLevelDomain] = true
+				if b.Pattern == domain+"/" {
+					result[domain] = true
 				}
 			}
 		}
@@ -172,31 +166,31 @@ func (s *Service) FindThreadMatches() (map[string]bool, error) {
 	return result, nil
 }
 
-func (s *Service) UpdateThreadMatchMetrics() error {
-	topLevelDomainThreads, err := s.FindThreadMatches()
+func (s *Service) UpdateThreatMatchMetrics() error {
+	domainThreats, err := s.FindThreatMatches()
 	if err != nil {
 		return nil
 	}
 
-	for topLevelDomain, threadsFound := range topLevelDomainThreads {
-		prom := s.PrometheusForTopLevelDomain(topLevelDomain)
-		if threadsFound {
-			prom.ThreadMatches.Set(1.0)
+	for domain, threatsFound := range domainThreats {
+		prom := s.PrometheusForDomain(domain)
+		if threatsFound {
+			prom.ThreatMatches.Set(1.0)
 		} else {
-			prom.ThreadMatches.Set(0.0)
+			prom.ThreatMatches.Set(0.0)
 		}
 	}
 
-	for topLevelDomain, prom := range s.Prometheus {
+	for domain, prom := range s.Prometheus {
 		found := false
-		for topLevelDomainThread, _ := range topLevelDomainThreads {
-			if topLevelDomainThread == topLevelDomain {
+		for domainThreat, _ := range domainThreats {
+			if domainThreat == domain {
 				found = true
 				break
 			}
 		}
 		if !found {
-			prom.ThreadMatches.Set(0.0)
+			prom.ThreatMatches.Set(0.0)
 		}
 	}
 
@@ -227,22 +221,19 @@ func (s *Service) UpdateIngresses() error {
 		for _, ingress := range ingressList.Items {
 			namespace := ingress.ObjectMeta.Namespace
 			name := ingress.ObjectMeta.Name
-			topLevelDomains := []string{}
+			domains := []string{}
 
 			for _, rule := range ingress.Spec.Rules {
-				hostSegments := strings.Split(rule.Host, ".")
-				topLevelDomain := strings.Join(hostSegments[max(len(hostSegments)-2, 0):], ".")
-
-				topLevelDomains = append(topLevelDomains, topLevelDomain)
+				domains = append(domains, strings.TrimPrefix(rule.Host, "*."))
 			}
-			topLevelDomains = unique(topLevelDomains)
+			domains = unique(domains)
 
 			ingresses = append(ingresses, ServiceIngress{
-				Namespace:       namespace,
-				Name:            name,
-				TopLevelDomains: topLevelDomains,
+				Namespace: namespace,
+				Name:      name,
+				Domains:   domains,
 			})
-			Debug.Printf("Found ingress %s/%s with top level domains %v\n", namespace, name, topLevelDomains)
+			Debug.Printf("Found ingress %s/%s with domains %v\n", namespace, name, domains)
 		}
 	}
 	s.Ingresses = ingresses

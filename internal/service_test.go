@@ -20,19 +20,20 @@ func TestServiceUpdateIngresses(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, []ServiceIngress{
-		{Namespace: "default", Name: "ingress-1", TopLevelDomains: []string{"ingress-1.localhost"}},
-		{Namespace: "default", Name: "ingress-2", TopLevelDomains: []string{"ingress-2.localhost"}},
-		{Namespace: "default", Name: "ingress-3", TopLevelDomains: []string{"ingress-3a.localhost", "ingress-3b.localhost"}},
+		{Namespace: "default", Name: "ingress-1", Domains: []string{"ingress-1.localhost"}},
+		{Namespace: "default", Name: "ingress-2", Domains: []string{"ingress-2.localhost"}},
+		{Namespace: "default", Name: "ingress-3", Domains: []string{"ingress-3a.localhost", "ingress-3b.localhost"}},
+		{Namespace: "default", Name: "ingress-4", Domains: []string{"sub.ingress-4.localhost"}},
 	}, service.Ingresses)
 }
 
-func TestServiceFindThreadMatches(t *testing.T) {
+func TestServiceFindThreatMatches(t *testing.T) {
 	service, err := createService()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	result, err := service.FindThreadMatches()
+	result, err := service.FindThreatMatches()
 	if err != nil {
 		t.Fatal(err)
 	}
