@@ -1,5 +1,7 @@
 package internal
 
+import "strings"
+
 func unique(stringSlice []string) []string {
 	keys := make(map[string]bool)
 	list := []string{}
@@ -12,9 +14,10 @@ func unique(stringSlice []string) []string {
 	return list
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
+func extractSecondLevelDomain(domain string) string {
+	segments := strings.Split(domain, ".")
+	if len(segments) < 2 {
+		return ""
 	}
-	return b
+	return strings.Join(segments[len(segments)-2:], ".")
 }

@@ -133,7 +133,13 @@ func (s *Service) FindThreatMatches() (map[string]bool, error) {
 
 	domains := []string{}
 	for _, ingress := range s.Ingresses {
-		domains = append(domains, ingress.Domains...)
+		for _, domain := range ingress.Domains {
+			domains = append(domains, domain)
+			secondLevelDomain := extractSecondLevelDomain(domain)
+			if secondLevelDomain != "" {
+				domains = append(domains, secondLevelDomain)
+			}
+		}
 	}
 	domains = append(domains, s.Opts.AdditionalDomains...)
 	domains = unique(domains)

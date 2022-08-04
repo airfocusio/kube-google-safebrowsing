@@ -33,11 +33,22 @@ func TestServiceFindThreatMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := service.UpdateIngresses(); err != nil {
+		t.Fatal(err)
+	}
 	result, err := service.FindThreatMatches()
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, map[string]bool{"microsoftofficeonedrivefileshare.on.fleek.co": true}, result)
+	assert.Equal(t, map[string]bool{
+		"ingress-1.localhost":                          false,
+		"ingress-2.localhost":                          false,
+		"ingress-3a.localhost":                         false,
+		"ingress-3b.localhost":                         false,
+		"sub.ingress-4.localhost":                      false,
+		"ingress-4.localhost":                          false,
+		"microsoftofficeonedrivefileshare.on.fleek.co": true,
+	}, result)
 }
 
 func createService() (*Service, error) {
