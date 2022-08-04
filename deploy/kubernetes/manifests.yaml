@@ -72,7 +72,13 @@ spec:
         app: kube-google-safebrowsing
     spec:
       containers:
-      - image: ghcr.io/airfocusio/kube-google-safebrowsing:latest
+      - env:
+        - name: GOOGLE_SAFEBROWSING_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: google-safebrowsing-api-key
+              name: kube-google-safebrowsing
+        image: ghcr.io/airfocusio/kube-google-safebrowsing:latest
         name: kube-google-safebrowsing
         ports:
         - containerPort: 1024

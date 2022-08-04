@@ -63,10 +63,19 @@ func NewService(opts ServiceOpts) (*Service, error) {
 func (s *Service) Run(stop <-chan os.Signal) error {
 	errs := make(chan error)
 
+	Info.Printf("Initializing\n")
+	if err := s.UpdateIngresses(); err != nil {
+		return err
+	}
+	if err := s.UpdateThreadMatchMetrics(); err != nil {
+		return err
+	}
+
 	go func() {
 		sm := http.NewServeMux()
 		sm.Handle("/metrics", promhttp.Handler())
 
+		Info.Printf("Starting metrics server\n")
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", 1024), sm); err != nil {
 			errs <- fmt.Errorf("unable to start http stat server: %w", err)
 			return
@@ -77,9 +86,8 @@ func (s *Service) Run(stop <-chan os.Signal) error {
 
 	go func() {
 		for {
-			Debug.Printf("Updating ingresses...\n")
 			if err := s.UpdateIngresses(); err != nil {
-				Error.Printf("Updating ingresses failed: %v\n", err)
+				Error.Printf("Error: %v\n", err)
 			}
 			time.Sleep(time.Minute)
 		}
@@ -87,9 +95,8 @@ func (s *Service) Run(stop <-chan os.Signal) error {
 
 	go func() {
 		for {
-			Debug.Printf("Retrieve google safebrowsing thread matches...\n")
 			if err := s.UpdateThreadMatchMetrics(); err != nil {
-				Error.Printf("Retrieving google safebrowsing thread matches failed: %v\n", err)
+				Error.Printf("Error: %v\n", err)
 			}
 			time.Sleep(s.Opts.Interval)
 		}
@@ -128,6 +135,8 @@ func (s *Service) PrometheusForTopLevelDomain(topLevelDomain string) *ServicePro
 }
 
 func (s *Service) FindThreadMatches() (map[string]bool, error) {
+	Debug.Printf("Retrieving google safebrowsing thread matches\n")
+
 	topLevelDomains := []string{}
 	for _, ingress := range s.Ingresses {
 		topLevelDomains = append(topLevelDomains, ingress.TopLevelDomains...)
@@ -141,11 +150,11 @@ func (s *Service) FindThreadMatches() (map[string]bool, error) {
 		APIKey: s.Opts.GoogleSafebrowsingApiKey,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("retrieving google safebrowsing thread matches failed: %w", err)
 	}
 	threats, err := sb.LookupURLsContext(ctx, topLevelDomains)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("retrieving google safebrowsing thread matches failed: %w", err)
 	}
 
 	result := map[string]bool{}
@@ -195,6 +204,8 @@ func (s *Service) UpdateThreadMatchMetrics() error {
 }
 
 func (s *Service) UpdateIngresses() error {
+	Debug.Printf("Updating ingresses\n")
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -203,14 +214,14 @@ func (s *Service) UpdateIngresses() error {
 
 	namespaceList, err := s.KubernetesClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("updating ingresses failed: %w", err)
 	}
 
 	ingresses := []ServiceIngress{}
 	for _, namespace := range namespaceList.Items {
 		ingressList, err := s.KubernetesClientset.NetworkingV1().Ingresses(namespace.Name).List(ctx, metav1.ListOptions{})
 		if err != nil {
-			return err
+			return fmt.Errorf("updating ingresses failed: %w", err)
 		}
 
 		for _, ingress := range ingressList.Items {
@@ -224,12 +235,14 @@ func (s *Service) UpdateIngresses() error {
 
 				topLevelDomains = append(topLevelDomains, topLevelDomain)
 			}
+			topLevelDomains = unique(topLevelDomains)
 
 			ingresses = append(ingresses, ServiceIngress{
 				Namespace:       namespace,
 				Name:            name,
-				TopLevelDomains: unique(topLevelDomains),
+				TopLevelDomains: topLevelDomains,
 			})
+			Debug.Printf("Found ingress %s/%s with top level domains %v\n", namespace, name, topLevelDomains)
 		}
 	}
 	s.Ingresses = ingresses
