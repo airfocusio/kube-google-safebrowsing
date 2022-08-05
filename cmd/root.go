@@ -74,7 +74,7 @@ func loadKubernetsRestConfig(kubeConfig bool) (*rest.Config, error) {
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "")
 	rootCmd.Flags().BoolVar(&rootCmdKubeConfig, "kube-config", false, "")
-	rootCmd.Flags().DurationVar(&rootCmdInterval, "interval", 5*time.Minute, "")
+	rootCmd.Flags().DurationVar(&rootCmdInterval, "interval", time.Hour, "")
 	rootCmd.Flags().StringArrayVar(&rootCmdAdditionalDomains, "additional-domains", []string{}, "")
 	rootCmd.AddCommand(versionCmd)
 }
