@@ -18,7 +18,7 @@ spec:
       serviceAccountName: kube-google-safebrowsing
       containers:
       - name: kube-google-safebrowsing
-        image: ghcr.io/airfocusio/kube-google-safebrowsing:0.1.0-rc.3
+        image: ghcr.io/airfocusio/kube-google-safebrowsing:0.1.1
         ports:
         - containerPort: 1024
           name: metrics
